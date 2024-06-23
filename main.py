@@ -25,7 +25,7 @@ data2019['Année'] = 2019
 data_combined = pd.concat([data2023, data2022, data2021, data2020, data2019])
 
 
-# Fonction pour mapper chaque institution à sa catégorie respective
+# Fonction pour mapper chaque institution à sa catégorie respective  
 def map_type_filiere(filiere, year):
     filiere_lower = filiere.lower()
     if year == 2020 and "dut" in filiere_lower:
@@ -38,18 +38,26 @@ def map_type_filiere(filiere, year):
         return "BTS"
     elif "licence" in filiere_lower:
         return "Licence"
-    elif "ingénieur" in filiere_lower:
-        return "Formation d'ingénieur"
+    elif any(term in filiere_lower for term in ["classe préparatoire", "cycle préparatoire", "cpge", "cupge", "formation d'ingénieur"]):
+        return "CPGE"
     else:
         return "Autres"
 
 # Appliquer la fonction de mapping pour toutes les années
+data2023['Filière'] = data2023.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
+data2022['Filière'] = data2022.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
+data2021['Filière'] = data2021.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
+data2020['Filière'] = data2020.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
+data2019['Filière'] = data2019.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
 data_combined['Filière'] = data_combined.apply(lambda row: map_type_filiere(row['Filière de formation'], row['Année']), axis=1)
 
 # Fonction pour préparer les données et générer un graphique à courbes avec Plotly
 def generate_line_chart(data, selected_types_formation):
+    # Filtrer les données pour exclure l'année 2019
+    data_filtered = data[data['Année'] != 2019]
+
     # Compter le nombre de formations pour chaque filière et chaque année
-    filiere_counts = data.groupby(['Année', 'Filière']).size().unstack(fill_value=0)
+    filiere_counts = data_filtered.groupby(['Année', 'Filière']).size().unstack(fill_value=0)
     
     # Calculer le pourcentage de chaque filière par année
     filiere_percentage = filiere_counts.div(filiere_counts.sum(axis=1), axis=0) * 100
@@ -61,6 +69,12 @@ def generate_line_chart(data, selected_types_formation):
     # Créer le graphique à courbes avec Plotly
     fig = px.line(filiere_percentage_melted, x='Année', y='Pourcentage', color='Filière', markers=True,
                   title="Répartition des types de formations en informatique (2019-2023)")
+    
+    # Définir la plage de l'axe y de 0 à 100
+    fig.update_yaxes(range=[0, 100])
+    
+    # Convertir les étiquettes de l'axe x en années entières
+    fig.update_xaxes(tickvals=np.arange(min(filiere_percentage_reset['Année']), max(filiere_percentage_reset['Année']) + 1, step=1))
     
     fig.update_layout(
         title={
@@ -78,7 +92,7 @@ def generate_line_chart(data, selected_types_formation):
     return fig
 
 # Liste des filières disponibles
-types_formation = ["DUT", "BUT", "BTS", "Licence", "Formation d'ingénieur", "Autres"]
+types_formation = ["DUT", "BUT", "BTS", "Licence", "CPGE", "Autres"]
 
 st.write("# Écart de présence entre les genres dans les études supérieures en informatique")
 
@@ -138,7 +152,7 @@ def generate_admises_filles_chart(data, selected_types_formation):
     return fig
 
 # Liste des filières disponibles
-types_formation = ["DUT", "BUT", "BTS", "Licence", "Formation d'ingénieur", "Autres"]
+types_formation = ["DUT", "BUT", "BTS", "Licence", "CPGE", "Autres"]
 
 st.write("##### Sélectionnez les types de formations à afficher pour le graphique ci-dessous")
 selected_types_formation_admises = [filiere for filiere in types_formation if st.checkbox(filiere, value=True)]
@@ -261,8 +275,13 @@ st.plotly_chart(generate_corr_matrix(data_corr, selected_year_corr))
 
 
 
-# Fonction pour générer la carte avec les marqueurs
-def generate_map(data):
+# Fonction pour générer la carte
+def generate_map(data, selected_types, min_perc, max_perc):
+    # Filtrer les données par type de formation et pourcentage de filles admises
+    data_filtered = data[(data['Filière'].isin(selected_types)) & 
+                         (data["% d’admis dont filles"] >= min_perc) & 
+                         (data["% d’admis dont filles"] <= max_perc)]
+
     # Carte centrée sur la France
     carte = folium.Map(location=[46.603354, 1.888334], zoom_start=6)
     
@@ -270,7 +289,7 @@ def generate_map(data):
     marker_cluster = MarkerCluster().add_to(carte)
     
     # Ajouter un marqueur pour chaque formation
-    for index, row in data.iterrows():
+    for index, row in data_filtered.iterrows():
         # Vérifier que les coordonnées sont disponibles
         if not pd.isnull(row['Coordonnées GPS de la formation']):
             coords = row['Coordonnées GPS de la formation'].split(',')
@@ -279,9 +298,13 @@ def generate_map(data):
             
             # Ajouter le contenu du graphique dans la popup
             popup_content = f'<div style="width: 450px;"><b>{row["Établissement"]}</b><br>' \
-                            f'{row["Filière de formation"]}<br>' \
-                            f'Taux d’accès: {row["Taux d’accès"]}%<br>' \
-                            f'Effectif total des candidats pour la formation: {row["Effectif total des candidats pour une formation"]}<br>' \
+                            f'{row["Filière de formation"]}<br>'
+                            
+
+            if 'Taux d’accès' in row:
+                popup_content += f'Taux d’accès: {row["Taux d’accès"]}%<br>'
+
+            popup_content += f'Effectif total des candidats pour la formation: {row["Effectif total des candidats pour une formation"]}<br>' \
                             f'Dont effectif des candidats garçons pour la formation: {row["Dont effectif des candidats garçons pour une formation"]}<br>' \
                             f'Dont effectif des candidates pour la formation: {row["Dont effectif des candidates pour une formation"]}<br>' \
                             f'% des candidates pour la formation: {row["% d’admis dont filles"]}%<br>' \
@@ -305,6 +328,18 @@ def display_map(carte):
 st.write("## Carte interactive des formations en informatique")
 selected_year = st.selectbox("Sélectionnez l'année", [2023, 2022, 2021, 2020, 2019])
 
+# Sélection des types de formations
+st.write("##### Sélectionnez les types de formations à afficher sur la carte")
+#selected_types_formation_map = st.multiselect("Types de formations", types_formation, default=types_formation)
+selected_types_formation_map = [filiere for filiere in types_formation if st.checkbox(filiere, value=True, key=f"checkbox_{filiere}_map")]
+
+
+# Sélection du pourcentage de filles admises
+st.write("##### Sélectionnez la plage de pourcentage de filles admises")
+min_percentage, max_percentage = st.slider("Pourcentage de filles admises", 0, 100, (0, 100))
+
+
+
 # Charger les données de l'année sélectionnée
 if selected_year == 2023:
     data = data2023
@@ -318,9 +353,11 @@ elif selected_year == 2019:
     data = data2019
 
 # Générer et afficher la carte
-carte = generate_map(data)
-
-display_map(carte)
+if selected_types_formation_map:
+    carte = generate_map(data, selected_types_formation_map, min_percentage, max_percentage)
+    display_map(carte)
+else:
+    st.write("Veuillez sélectionner au moins un type de formation pour afficher la carte.")
 
 
 # Fonction pour afficher les informations supplémentaires pour chaque dataset
