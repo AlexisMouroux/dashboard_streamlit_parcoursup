@@ -96,6 +96,14 @@ types_formation = ["DUT", "BUT", "BTS", "Licence", "CPGE", "Autres"]
 
 st.write("# Écart de présence entre les genres dans les études supérieures en informatique")
 
+#Texte descriptif de l'outil
+st.write("""
+        Cet outil permet d'analyser les données des formations et des candidatures dans le domaine de l'informatique dans le milieu universitaire français de 2019 à 2023. 
+        Les données se concentrent sur des thèmes porteurs économiquement tels que la science des données, l'intelligence artificielle, la blockchain etc.
+        L'objectif est d'étudier la répartition des candidats et des admis
+        par genre. Les données proviennent de Parcoursup et sont préparées à l'aide d'un notebook dédié.
+    """)
+
 
 # Cases à cocher pour sélectionner les types de formations à afficher
 st.write("##### Sélectionnez les types de formations à afficher pour le graphique ci-dessous")
@@ -271,16 +279,39 @@ elif selected_year_corr == "2019":
 # Générer et afficher la matrice de corrélation
 st.plotly_chart(generate_corr_matrix(data_corr, selected_year_corr))
 
+# Texte explicatif sous la matrice de corrélation
+st.write("""
+Une matrice de corrélation est un tableau carré qui montre les coefficients de corrélation entre plusieurs variables. Chaque cellule de la matrice représente le coefficient de corrélation entre deux variables.
 
+Les coefficients de corrélation varient entre -1 et 1 :
+- Un coefficient de corrélation de 1 indique une corrélation positive parfaite entre deux variables, ce qui signifie que lorsque l'une des variables augmente, l'autre augmente également proportionnellement.
+- Un coefficient de corrélation de -1 indique une corrélation négative parfaite, ce qui signifie que lorsque l'une des variables augmente, l'autre diminue proportionnellement.
+- Un coefficient de corrélation de 0 indique qu'il n'y a pas de corrélation linéaire entre les variables.
+
+La matrice de corrélation est utile pour identifier les relations entre les variables et pour sélectionner des variables pour des modèles de prédiction ou d'autres analyses statistiques. Cependant, le fait que deux variables soient fortement corrélées ne démontre pas qu'il y ait une relation de causalité entre l'une et l'autre.
+""")
 
 
 
 # Fonction pour générer la carte
-def generate_map(data, selected_types, min_perc, max_perc):
+def generate_map(data, selected_types, min_perc_admises, max_perc_admises):
+    #(data, selected_types, min_perc_admises, max_perc_admises, min_perc_boursiers, max_perc_boursiers, min_perc_academie, max_perc_academie)
+
     # Filtrer les données par type de formation et pourcentage de filles admises
     data_filtered = data[(data['Filière'].isin(selected_types)) & 
-                         (data["% d’admis dont filles"] >= min_perc) & 
-                         (data["% d’admis dont filles"] <= max_perc)]
+                         (data["% d’admis dont filles"] >= min_perc_admises) & 
+                         (data["% d’admis dont filles"] <= max_perc_admises) 
+                         
+                         ]
+    
+    #data_filtered = data[(data['Filière'].isin(selected_types)) & 
+                         #(data["% d’admis dont filles"] >= min_perc_admises) & 
+                         #(data["% d’admis dont filles"] <= max_perc_admises) &
+                         #(data["% admis boursiers"] >= min_perc_boursiers) & 
+                         #(data["% admis boursiers"] <= max_perc_boursiers) &
+                         #(data["% admis meme academie"] >= min_perc_academie) &
+                         #(data["% admis meme academie"] <= max_perc_academie) 
+                         #]
 
     # Carte centrée sur la France
     carte = folium.Map(location=[46.603354, 1.888334], zoom_start=6)
@@ -328,6 +359,7 @@ def display_map(carte):
 st.write("## Carte interactive des formations en informatique")
 selected_year = st.selectbox("Sélectionnez l'année", [2023, 2022, 2021, 2020, 2019])
 
+
 # Sélection des types de formations
 st.write("##### Sélectionnez les types de formations à afficher sur la carte")
 #selected_types_formation_map = st.multiselect("Types de formations", types_formation, default=types_formation)
@@ -336,7 +368,17 @@ selected_types_formation_map = [filiere for filiere in types_formation if st.che
 
 # Sélection du pourcentage de filles admises
 st.write("##### Sélectionnez la plage de pourcentage de filles admises")
-min_percentage, max_percentage = st.slider("Pourcentage de filles admises", 0, 100, (0, 100))
+min_percentage_admises, max_percentage_admises = st.slider("Pourcentage de filles admises", 0, 100, (0, 100))
+
+# Sélection du pourcentage d'admis boursiers
+#st.write("##### Sélectionnez la plage de pourcentage d'admis boursiers")
+#min_percentage_boursiers, max_percentage_boursiers = st.slider("Pourcentage d'admis boursiers", 0, 100, (0, 100))
+
+# Sélection du pourcentage d'admis boursiers
+#st.write("##### Sélectionnez la plage de pourcentage d'admis de la même académie que la formation")
+#min_percentage_academie, max_percentage_academie = st.slider("Pourcentage d'admis de la même académie que la formation", 0, 100, (0, 100))
+
+
 
 
 
@@ -354,7 +396,8 @@ elif selected_year == 2019:
 
 # Générer et afficher la carte
 if selected_types_formation_map:
-    carte = generate_map(data, selected_types_formation_map, min_percentage, max_percentage)
+    carte = generate_map(data, selected_types_formation_map, min_percentage_admises, max_percentage_admises)
+    #carte = generate_map(data, selected_types_formation_map, min_percentage_admises, max_percentage_admises, min_percentage_boursiers, max_percentage_boursiers, min_percentage_academie, max_percentage_academie)
     display_map(carte)
 else:
     st.write("Veuillez sélectionner au moins un type de formation pour afficher la carte.")
@@ -375,6 +418,7 @@ def display_dataset_info(data, year):
     st.write(f"Nombre d'admis garçons : {num_admis_garcons}")
     st.write(f"Nombre d'admises filles : {num_admises_filles}")
     st.write("Source des données : [Parcoursup](https://data.enseignementsup-recherche.gouv.fr/pages/parcoursupdata/?disjunctive.fili)")
+    st.write(f"Méthode de préparation des données : [Notebook](https://www.kaggle.com/code/alexismouroux/parcoursup-analysis-{year})")
 
 st.write("## Explorer les données")
 
