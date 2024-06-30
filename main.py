@@ -8,11 +8,11 @@ from folium.plugins import MarkerCluster
 import streamlit.components.v1 as components
 
 # Charger les données
-data2023 = pd.read_csv('parcoursup_data_2023.csv')
-data2022 = pd.read_csv('parcoursup_data_2022.csv')
-data2021 = pd.read_csv('parcoursup_data_2021.csv')
-data2020 = pd.read_csv('parcoursup_data_2020.csv')
-data2019 = pd.read_csv('parcoursup_data_2019.csv')
+data2023 = pd.read_csv('parcoursup_data_info_2023.csv')
+data2022 = pd.read_csv('parcoursup_data_info_2022.csv')
+data2021 = pd.read_csv('parcoursup_data_info_2021.csv')
+data2020 = pd.read_csv('parcoursup_data_info_2020.csv')
+data2019 = pd.read_csv('parcoursup_data_info_2019.csv')
 
 # Ajouter une colonne pour l'année
 data2023['Année'] = 2023
